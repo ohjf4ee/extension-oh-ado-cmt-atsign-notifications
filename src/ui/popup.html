@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ADO Mentions</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="popup-container">
+    <!-- Header -->
+    <header class="popup-header">
+      <div class="header-left">
+        <h1>@ Mentions</h1>
+        <span id="unread-badge" class="unread-badge hidden">0</span>
+      </div>
+      <div class="header-right">
+        <button id="refresh-btn" class="icon-btn" title="Refresh now">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+            <path d="M13.65 2.35A8 8 0 1 0 16 8h-2a6 6 0 1 1-1.76-4.24L10 6h6V0l-2.35 2.35z"/>
+          </svg>
+        </button>
+        <button id="settings-btn" class="icon-btn" title="Settings">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+            <path d="M8 4.754a3.246 3.246 0 1 0 0 6.492 3.246 3.246 0 0 0 0-6.492zM5.754 8a2.246 2.246 0 1 1 4.492 0 2.246 2.246 0 0 1-4.492 0z"/>
+            <path d="M9.796 1.343c-.527-1.79-3.065-1.79-3.592 0l-.094.319a.873.873 0 0 1-1.255.52l-.292-.16c-1.64-.892-3.433.902-2.54 2.541l.159.292a.873.873 0 0 1-.52 1.255l-.319.094c-1.79.527-1.79 3.065 0 3.592l.319.094a.873.873 0 0 1 .52 1.255l-.16.292c-.892 1.64.901 3.434 2.541 2.54l.292-.159a.873.873 0 0 1 1.255.52l.094.319c.527 1.79 3.065 1.79 3.592 0l.094-.319a.873.873 0 0 1 1.255-.52l.292.16c1.64.893 3.434-.902 2.54-2.541l-.159-.292a.873.873 0 0 1 .52-1.255l.319-.094c1.79-.527 1.79-3.065 0-3.592l-.319-.094a.873.873 0 0 1-.52-1.255l.16-.292c.893-1.64-.902-3.433-2.541-2.54l-.292.159a.873.873 0 0 1-1.255-.52l-.094-.319zm-2.633.283c.246-.835 1.428-.835 1.674 0l.094.319a1.873 1.873 0 0 0 2.693 1.115l.291-.16c.764-.415 1.6.42 1.184 1.185l-.159.292a1.873 1.873 0 0 0 1.116 2.692l.318.094c.835.246.835 1.428 0 1.674l-.319.094a1.873 1.873 0 0 0-1.115 2.693l.16.291c.415.764-.42 1.6-1.185 1.184l-.291-.159a1.873 1.873 0 0 0-2.693 1.116l-.094.318c-.246.835-1.428.835-1.674 0l-.094-.319a1.873 1.873 0 0 0-2.692-1.115l-.292.16c-.764.415-1.6-.42-1.184-1.185l.159-.291A1.873 1.873 0 0 0 1.945 8.93l-.319-.094c-.835-.246-.835-1.428 0-1.674l.319-.094A1.873 1.873 0 0 0 3.06 4.377l-.16-.292c-.415-.764.42-1.6 1.185-1.184l.292.159a1.873 1.873 0 0 0 2.692-1.115l.094-.319z"/>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main content area -->
+    <main class="popup-main">
+      <!-- Mention list view (default) -->
+      <section id="mentions-view" class="view active">
+        <div class="list-controls">
+          <select id="filter-org" title="Filter by organization">
+            <option value="">All organizations</option>
+          </select>
+          <button id="mark-all-read-btn" class="text-btn">Mark all read</button>
+        </div>
+
+        <div id="mentions-list" class="mentions-list">
+          <!-- Populated dynamically -->
+        </div>
+
+        <div id="empty-state" class="empty-state hidden">
+          <div class="empty-icon">@</div>
+          <p>No mentions found</p>
+          <p class="empty-hint">You'll see @mentions here when someone mentions you in Azure DevOps</p>
+        </div>
+
+        <div id="no-orgs-state" class="empty-state hidden">
+          <div class="empty-icon">+</div>
+          <p>No organizations configured</p>
+          <p class="empty-hint">Click the settings icon to add an Azure DevOps organization</p>
+        </div>
+
+        <div id="loading-state" class="loading-state hidden">
+          <div class="spinner"></div>
+          <p>Loading mentions...</p>
+        </div>
+      </section>
+
+      <!-- Config view -->
+      <section id="config-view" class="view">
+        <div class="config-section">
+          <h2>Organizations</h2>
+          <div id="org-list" class="org-list">
+            <!-- Populated dynamically -->
+          </div>
+          <button id="add-org-btn" class="primary-btn full-width">+ Add Organization</button>
+        </div>
+
+        <div class="config-section">
+          <h2>Notifications</h2>
+          <label class="setting-row">
+            <span>Browser notifications</span>
+            <input type="checkbox" id="notifications-toggle">
+          </label>
+          <p class="hint">Get notified when new @mentions are detected</p>
+        </div>
+
+        <div class="config-section">
+          <h2>Data</h2>
+          <button id="clear-data-btn" class="danger-btn">Clear All Data</button>
+          <p class="hint">Remove all saved organizations and mention history</p>
+        </div>
+
+        <button id="back-btn" class="text-btn back-link">&larr; Back to mentions</button>
+      </section>
+    </main>
+
+    <!-- Add/Edit Org Modal -->
+    <div id="org-modal" class="modal hidden">
+      <div class="modal-backdrop"></div>
+      <div class="modal-content">
+        <h2 id="org-modal-title">Add Organization</h2>
+        <form id="org-form">
+          <div class="form-group">
+            <label for="org-url">Organization URL</label>
+            <input type="text" id="org-url" placeholder="https://dev.azure.com/myorg" required>
+            <p class="hint">e.g., https://dev.azure.com/myorg or just "myorg"</p>
+          </div>
+          <div class="form-group">
+            <label for="org-pat">Personal Access Token</label>
+            <input type="password" id="org-pat" required>
+            <p class="hint">
+              <a href="#" id="create-pat-link" class="link">Create a PAT</a> with "Work Items: Read" scope
+            </p>
+          </div>
+          <div class="form-group">
+            <label class="checkbox-label">
+              <input type="checkbox" id="consent-checkbox" required>
+              <span>I understand this token will be stored securely in my browser</span>
+            </label>
+          </div>
+          <div id="org-status" class="status-message hidden"></div>
+          <div class="modal-actions">
+            <button type="button" id="cancel-org-btn" class="text-btn">Cancel</button>
+            <button type="submit" id="save-org-btn" class="primary-btn">Save</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="popup-footer">
+      <span id="last-updated">Last updated: --</span>
+    </footer>
+  </div>
+
+  <script src="popup.js" type="module"></script>
+</body>
+</html>
