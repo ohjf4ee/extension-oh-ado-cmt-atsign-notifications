@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "ADO Notifications",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Notifications of assignments and @mentions in Azure DevOps work items and pull requests",
   "permissions": [
     "storage",
