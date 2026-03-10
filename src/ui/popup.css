@@ -679,3 +679,17 @@ body {
   background: var(--bg-secondary);
   flex-shrink: 0;
 }
+
+.popup-footer #last-updated.error {
+  color: var(--error-color);
+  font-weight: 600;
+}
+
+.popup-footer #last-updated.clickable {
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.popup-footer #last-updated.clickable:hover {
+  opacity: 0.8;
+}

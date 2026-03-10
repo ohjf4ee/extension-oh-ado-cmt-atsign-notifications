@@ -37,23 +37,40 @@ export class AdoApiError extends Error {
 
 /**
  * Returns a user-friendly error message for display.
+ * Always appends the actual error details for debugging.
  */
 export function getUserFriendlyError(error) {
+  const rawMsg = error?.message || String(error) || 'Unknown error';
+  // Extract just the core message, trimming the "ADO API Error (xxx):" prefix if present
+  const actualMsg = rawMsg.replace(/^ADO API Error \(\d+\):\s*/, '').substring(0, 200);
+
   if (error instanceof AdoApiError) {
+    const endpoint = error.endpoint || '';
+
     if (error.isAuthError) {
-      return 'Authentication failed. Please check your PAT and ensure it has not expired.';
+      if (endpoint.includes('/git/')) {
+        return `Auth failed for Git/PR (${error.status}). Check PAT has Code (Read) scope. ${actualMsg}`;
+      }
+      return `Auth failed (${error.status}). Check PAT scopes/expiration. ${actualMsg}`;
     }
     if (error.isRateLimited) {
-      return 'Azure DevOps is temporarily limiting requests. Please wait a moment.';
+      return `Rate limited (${error.status}). ${actualMsg}`;
     }
     if (error.isServerError) {
-      return 'Azure DevOps is experiencing issues. Please try again later.';
+      return `Server error (${error.status}). ${actualMsg}`;
     }
     if (error.isNotFound) {
-      return 'The requested resource was not found. Please check your organization URL.';
+      return `Not found (${error.status}). ${actualMsg}`;
     }
+    return `API error (${error.status}). ${actualMsg}`;
   }
-  return 'Unable to connect to Azure DevOps. Please check your network connection.';
+
+  // Network errors or other non-API errors
+  if (rawMsg.includes('Failed to fetch') || rawMsg.includes('NetworkError')) {
+    return `Network error. ${rawMsg}`;
+  }
+
+  return rawMsg;
 }
 
 /**

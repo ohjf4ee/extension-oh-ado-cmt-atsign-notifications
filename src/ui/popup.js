@@ -249,6 +249,25 @@ function updateUnreadBadge() {
 }
 
 function updateLastUpdated() {
+  // Check for any org errors first
+  const orgsWithErrors = currentState.organizations.filter(org => org.lastError);
+
+  if (orgsWithErrors.length > 0) {
+    // Show error state in footer
+    const errorOrg = orgsWithErrors[0];
+    const errorText = orgsWithErrors.length === 1
+      ? `${errorOrg.orgName}: ${errorOrg.lastError}`
+      : `${orgsWithErrors.length} orgs have errors`;
+    elements.lastUpdated.textContent = errorText;
+    elements.lastUpdated.classList.add('error');
+    elements.lastUpdated.classList.add('clickable');
+    return;
+  }
+
+  // No errors - show last updated time
+  elements.lastUpdated.classList.remove('error');
+  elements.lastUpdated.classList.remove('clickable');
+
   const timestamps = Object.values(currentState.lastPoll);
   if (timestamps.length === 0) {
     elements.lastUpdated.textContent = 'Never updated';
@@ -264,11 +283,9 @@ function updateNotificationsToggle() {
 }
 
 function updateAuthErrorBanner() {
-  const orgsWithAuthErrors = currentState.organizations.filter(org =>
-    org.lastError && org.lastError.includes('Authentication failed')
-  );
+  const orgsWithErrors = currentState.organizations.filter(org => org.lastError);
 
-  if (orgsWithAuthErrors.length > 0) {
+  if (orgsWithErrors.length > 0) {
     elements.authErrorBanner.classList.remove('hidden');
   } else {
     elements.authErrorBanner.classList.add('hidden');
@@ -341,6 +358,13 @@ function setupEventListeners() {
   // Settings toggle
   elements.settingsBtn.addEventListener('click', () => {
     toggleView('config');
+  });
+
+  // Footer error click → go to settings
+  elements.lastUpdated.addEventListener('click', () => {
+    if (elements.lastUpdated.classList.contains('clickable')) {
+      toggleView('config');
+    }
   });
 
   // Auth error banner Fix button
