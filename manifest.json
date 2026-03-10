@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "ADO @ Mention Notifications",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Get notified when someone @mentions you in Azure DevOps work items",
   "permissions": [
     "storage",
