@@ -53,7 +53,7 @@ export async function handleMessage(message, sender) {
     case MESSAGE_TYPES.MARK_AS_UNREAD: {
       state.readIds.delete(message.mentionId);
       await saveReadIds(state.readIds);
-      await updateBadge();
+      await updateBadge({ checkForNewMentions: false });
       return { success: true };
     }
 
