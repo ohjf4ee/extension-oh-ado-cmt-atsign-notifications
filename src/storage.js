@@ -309,3 +309,102 @@ export async function getDecryptedPat(orgUrl) {
 
   return decryptPat(org.pat);
 }
+
+// =============================================================================
+// PR Poll State
+// =============================================================================
+
+/**
+ * Gets the last PR poll timestamp for an organization.
+ */
+export async function getLastPRPoll(orgUrl) {
+  const data = await chrome.storage.local.get(STORAGE_KEYS.LAST_PR_POLL);
+  const lastPRPoll = data[STORAGE_KEYS.LAST_PR_POLL] || {};
+  return lastPRPoll[orgUrl] || null;
+}
+
+/**
+ * Updates the last PR poll timestamp for an organization.
+ */
+export async function updateLastPRPoll(orgUrl, timestamp) {
+  const data = await chrome.storage.local.get(STORAGE_KEYS.LAST_PR_POLL);
+  const lastPRPoll = data[STORAGE_KEYS.LAST_PR_POLL] || {};
+  lastPRPoll[orgUrl] = timestamp;
+  await chrome.storage.local.set({
+    [STORAGE_KEYS.LAST_PR_POLL]: lastPRPoll,
+  });
+}
+
+/**
+ * Gets the PR thread cache for an organization.
+ * Returns { prId: maxLastUpdatedDate } map.
+ */
+export async function getPRThreadCache(orgUrl) {
+  const data = await chrome.storage.local.get(STORAGE_KEYS.PR_THREAD_CACHE);
+  const cache = data[STORAGE_KEYS.PR_THREAD_CACHE] || {};
+  return cache[orgUrl] || {};
+}
+
+/**
+ * Updates the PR thread cache for a specific PR.
+ */
+export async function updatePRThreadCache(orgUrl, prId, maxDate) {
+  const data = await chrome.storage.local.get(STORAGE_KEYS.PR_THREAD_CACHE);
+  const cache = data[STORAGE_KEYS.PR_THREAD_CACHE] || {};
+  if (!cache[orgUrl]) {
+    cache[orgUrl] = {};
+  }
+  cache[orgUrl][prId] = maxDate;
+  await chrome.storage.local.set({
+    [STORAGE_KEYS.PR_THREAD_CACHE]: cache,
+  });
+}
+
+/**
+ * Saves the entire PR thread cache for an organization.
+ */
+export async function savePRThreadCache(orgUrl, prCache) {
+  const data = await chrome.storage.local.get(STORAGE_KEYS.PR_THREAD_CACHE);
+  const cache = data[STORAGE_KEYS.PR_THREAD_CACHE] || {};
+  cache[orgUrl] = prCache;
+  await chrome.storage.local.set({
+    [STORAGE_KEYS.PR_THREAD_CACHE]: cache,
+  });
+}
+
+/**
+ * Clears the PR thread cache for an organization.
+ */
+export async function clearPRThreadCache(orgUrl) {
+  const data = await chrome.storage.local.get(STORAGE_KEYS.PR_THREAD_CACHE);
+  const cache = data[STORAGE_KEYS.PR_THREAD_CACHE] || {};
+  delete cache[orgUrl];
+  await chrome.storage.local.set({
+    [STORAGE_KEYS.PR_THREAD_CACHE]: cache,
+  });
+}
+
+// =============================================================================
+// Assignment Check State
+// =============================================================================
+
+/**
+ * Gets the last assignment check timestamp for an organization.
+ */
+export async function getLastAssignmentCheck(orgUrl) {
+  const data = await chrome.storage.local.get(STORAGE_KEYS.LAST_ASSIGNMENT_CHECK);
+  const lastCheck = data[STORAGE_KEYS.LAST_ASSIGNMENT_CHECK] || {};
+  return lastCheck[orgUrl] || null;
+}
+
+/**
+ * Updates the last assignment check timestamp for an organization.
+ */
+export async function updateLastAssignmentCheck(orgUrl, timestamp) {
+  const data = await chrome.storage.local.get(STORAGE_KEYS.LAST_ASSIGNMENT_CHECK);
+  const lastCheck = data[STORAGE_KEYS.LAST_ASSIGNMENT_CHECK] || {};
+  lastCheck[orgUrl] = timestamp;
+  await chrome.storage.local.set({
+    [STORAGE_KEYS.LAST_ASSIGNMENT_CHECK]: lastCheck,
+  });
+}

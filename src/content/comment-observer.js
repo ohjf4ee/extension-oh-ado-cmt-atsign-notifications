@@ -20,7 +20,7 @@ function debounce(fn, delay) {
  * Notifies the background service that a comment was added.
  */
 const notifyCommentAdded = debounce(() => {
-  console.log('ADO Mentions: Comment activity detected, triggering refresh');
+  console.log('ADO Notifications: Comment activity detected, triggering refresh');
   chrome.runtime.sendMessage({ type: MESSAGE_TYPE_COMMENT_ADDED }).catch(() => {
     // Extension context may be invalidated, ignore
   });
@@ -97,7 +97,7 @@ function setupObserver() {
     }
   }, true);
 
-  console.log('ADO Mentions: Comment observer initialized');
+  console.log('ADO Notifications: Comment observer initialized');
 }
 
 // Initialize when DOM is ready

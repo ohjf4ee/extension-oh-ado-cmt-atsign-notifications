@@ -17,6 +17,16 @@ export {
   updateOrganization,
   removeOrganization,
   clearAllData,
+  // PR poll state
+  getLastPRPoll,
+  updateLastPRPoll,
+  getPRThreadCache,
+  updatePRThreadCache,
+  savePRThreadCache,
+  clearPRThreadCache,
+  // Assignment check state
+  getLastAssignmentCheck,
+  updateLastAssignmentCheck,
 } from '../storage.js';
 
 import { loadState, saveMentions } from '../storage.js';

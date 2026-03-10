@@ -168,7 +168,7 @@ function renderMentionItem(mention, isRead) {
           <span>${escapeHtml(mention.projectName)}</span>
         </div>
         <div class="mention-title">
-          <span class="mention-type-badge ${mention.type}">${mention.type}</span>
+          <span class="mention-type-badge ${mention.type}">${getBadgeText(mention)}</span>
           <span>${escapeHtml(mention.itemTitle)}</span>
         </div>
         <div class="mention-header">
@@ -587,4 +587,26 @@ function escapeHtml(text) {
   const div = document.createElement('div');
   div.textContent = String(text);
   return div.innerHTML;
+}
+
+/**
+ * Gets the badge text for a mention based on type and subtype.
+ */
+function getBadgeText(mention) {
+  // Default subtype to 'mention' for backward compatibility with existing data
+  const subtype = mention.subtype || 'mention';
+
+  if (subtype === 'assignment') {
+    if (mention.type === 'workitem') {
+      return `ASSIGNED #${mention.itemId}`;
+    } else {
+      return `ASSIGNED PR ${mention.itemId}`;
+    }
+  } else {
+    if (mention.type === 'workitem') {
+      return `COMMENT ON #${mention.itemId}`;
+    } else {
+      return `COMMENT ON PR ${mention.itemId}`;
+    }
+  }
 }

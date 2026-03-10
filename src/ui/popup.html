@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ADO Mentions</title>
+  <title>ADO Notifications</title>
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
@@ -11,7 +11,7 @@
     <!-- Header -->
     <header class="popup-header">
       <div class="header-left">
-        <h1>@ Mentions</h1>
+        <h1>ADO Notifications</h1>
         <span id="unread-badge" class="unread-badge hidden">0</span>
       </div>
       <div class="header-right">
@@ -55,8 +55,8 @@
 
         <div id="empty-state" class="empty-state hidden">
           <div class="empty-icon">@</div>
-          <p>No mentions found</p>
-          <p class="empty-hint">You'll see @mentions here when someone mentions you in Azure DevOps</p>
+          <p>No notifications found</p>
+          <p class="empty-hint">You'll see assignments and @mentions here</p>
         </div>
 
         <div id="no-orgs-state" class="empty-state hidden">
@@ -67,7 +67,7 @@
 
         <div id="loading-state" class="loading-state hidden">
           <div class="spinner"></div>
-          <p>Loading mentions...</p>
+          <p>Loading notifications...</p>
         </div>
       </section>
 
@@ -87,7 +87,7 @@
             <span>Browser notifications</span>
             <input type="checkbox" id="notifications-toggle">
           </label>
-          <p class="hint">Get notified when new @mentions are detected</p>
+          <p class="hint">Get notified when new items are detected</p>
         </div>
 
         <div class="config-section">
@@ -96,7 +96,7 @@
           <p class="hint">Remove all saved organizations and mention history</p>
         </div>
 
-        <button id="back-btn" class="text-btn back-link">&larr; Back to mentions</button>
+        <button id="back-btn" class="text-btn back-link">&larr; Back to notifications</button>
       </section>
     </main>
 
@@ -115,7 +115,7 @@
             <label for="org-pat">Personal Access Token</label>
             <input type="password" id="org-pat" required>
             <p class="hint">
-              <a href="#" id="create-pat-link" class="link">Create a PAT</a> with Work Items (Read) scope
+              <a href="#" id="create-pat-link" class="link">Create a PAT</a> with Work Items (Read) and Code (Read) scopes
             </p>
           </div>
           <div class="form-group">

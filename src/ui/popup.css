@@ -29,7 +29,7 @@ body {
   font-size: 13px;
   color: var(--text-primary);
   background: var(--bg-primary);
-  width: 570px;
+  width: 712px;
   min-height: 200px;
   max-height: 600px;
 }
@@ -336,13 +336,13 @@ body {
 }
 
 .mention-type-badge.workitem {
-  background: var(--success-bg);
-  color: var(--success-color);
+  background: var(--bg-hover);
+  color: var(--text-secondary);
 }
 
 .mention-type-badge.pullrequest {
-  background: var(--warning-bg);
-  color: var(--warning-color);
+  background: #EDE8F5;
+  color: #8764B8;
 }
 
 .mention-preview {

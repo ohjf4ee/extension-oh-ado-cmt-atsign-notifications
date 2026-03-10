@@ -354,4 +354,81 @@ export class AdoApiClient {
     );
     return response.comments || [];
   }
+
+  // ===========================================================================
+  // Pull Request API Methods
+  // ===========================================================================
+
+  /**
+   * Gets pull requests from all repositories in a project.
+   *
+   * @param {string} project - Project name or ID
+   * @param {Object} options - Query options
+   * @param {string} [options.creatorId] - Filter by creator ID
+   * @param {string} [options.reviewerId] - Filter by reviewer ID
+   * @param {string} [options.status='active'] - PR status: active, completed, abandoned, all
+   * @param {number} [options.top=100] - Max results to return
+   * @returns {Promise<Array>} Pull request objects
+   */
+  async getPullRequests(project, options = {}) {
+    const {
+      creatorId,
+      reviewerId,
+      status = 'active',
+      top = 100,
+    } = options;
+
+    let endpoint = `/${encodeURIComponent(project)}/_apis/git/pullrequests?api-version=${API_CONFIG.version}`;
+    endpoint += `&searchCriteria.status=${status}`;
+    endpoint += `&$top=${top}`;
+
+    if (creatorId) {
+      endpoint += `&searchCriteria.creatorId=${creatorId}`;
+    }
+    if (reviewerId) {
+      endpoint += `&searchCriteria.reviewerId=${reviewerId}`;
+    }
+
+    const response = await this.fetch(endpoint);
+    return response.value || [];
+  }
+
+  /**
+   * Gets all comment threads for a pull request.
+   *
+   * @param {string} project - Project name or ID
+   * @param {string} repositoryId - Repository ID or name
+   * @param {number} pullRequestId - Pull request ID
+   * @returns {Promise<Array>} Thread objects with comments
+   */
+  async getPullRequestThreads(project, repositoryId, pullRequestId) {
+    const endpoint = `/${encodeURIComponent(project)}/_apis/git/repositories/${encodeURIComponent(repositoryId)}/pullRequests/${pullRequestId}/threads?api-version=${API_CONFIG.version}`;
+    const response = await this.fetch(endpoint);
+    return response.value || [];
+  }
+
+  /**
+   * Gets detailed information about a pull request.
+   *
+   * @param {string} project - Project name or ID
+   * @param {string} repositoryId - Repository ID or name
+   * @param {number} pullRequestId - Pull request ID
+   * @returns {Promise<Object>} Pull request details
+   */
+  async getPullRequest(project, repositoryId, pullRequestId) {
+    const endpoint = `/${encodeURIComponent(project)}/_apis/git/repositories/${encodeURIComponent(repositoryId)}/pullRequests/${pullRequestId}?api-version=${API_CONFIG.version}`;
+    return this.fetch(endpoint);
+  }
+
+  /**
+   * Gets all repositories in a project.
+   *
+   * @param {string} project - Project name or ID
+   * @returns {Promise<Array>} Repository objects
+   */
+  async getRepositories(project) {
+    const endpoint = `/${encodeURIComponent(project)}/_apis/git/repositories?api-version=${API_CONFIG.version}`;
+    const response = await this.fetch(endpoint);
+    return response.value || [];
+  }
 }

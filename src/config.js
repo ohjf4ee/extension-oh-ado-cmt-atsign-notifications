@@ -10,6 +10,9 @@ export const STORAGE_KEYS = {
   LAST_POLL: 'ado_last_poll',
   PREFERENCES: 'ado_preferences',
   CURRENT_USERS: 'ado_current_users',
+  LAST_PR_POLL: 'ado_last_pr_poll',
+  PR_THREAD_CACHE: 'ado_pr_thread_cache',
+  LAST_ASSIGNMENT_CHECK: 'ado_last_assign',
 };
 
 // Default preferences

@@ -12,6 +12,12 @@ import {
   updateLastPoll,
   getDecryptedPat,
   mergeMentions,
+  getLastPRPoll,
+  updateLastPRPoll,
+  getPRThreadCache,
+  savePRThreadCache,
+  getLastAssignmentCheck,
+  updateLastAssignmentCheck,
 } from './state.js';
 import { updateBadge, dispatchNotifications } from './notifications.js';
 
@@ -98,21 +104,37 @@ export async function pollOrganization(org) {
       return { success: false, rateLimited: true };
     }
 
-    // Detect mentions
-    const newMentions = await detectMentions(apiClient, {
+    // Load state for PR and assignment tracking
+    const lastPRPollTime = await getLastPRPoll(org.orgUrl);
+    const prThreadCache = await getPRThreadCache(org.orgUrl);
+    const lastAssignmentCheckTime = await getLastAssignmentCheck(org.orgUrl);
+
+    // Detect all notification types
+    const result = await detectMentions(apiClient, {
       includeWorkItems: true,
-      includePRs: false, // Stubbed for Phase 1
+      includePRs: true,
+      includeAssignments: true,
+      lastPRPollTime,
+      prThreadCache,
+      lastAssignmentCheckTime,
     });
 
     // Load current state and merge mentions
     const state = await loadState();
-    const { added, updated } = mergeMentions(state.mentions, newMentions);
+    const { added, updated } = mergeMentions(state.mentions, result.mentions);
 
     // Save updated mentions
     await saveMentions(state.mentions);
 
-    // Update last poll time
+    // Update timestamps
     await updateLastPoll(org.orgUrl, Date.now());
+    await updateLastAssignmentCheck(org.orgUrl, new Date().toISOString());
+
+    // Update PR poll state if we polled PRs
+    if (result.prResult) {
+      await updateLastPRPoll(org.orgUrl, result.prResult.newLastPollTime);
+      await savePRThreadCache(org.orgUrl, result.prResult.newThreadCache);
+    }
 
     // Clear any previous error
     if (org.lastError) {

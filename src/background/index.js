@@ -18,7 +18,7 @@ import { loadState } from './state.js';
  * Called on extension load.
  */
 export function initializeBackgroundService() {
-  console.log('ADO Mentions: Initializing background service');
+  console.log('ADO Notifications: Initializing background service');
 
   // Set up event handlers
   setupAlarmHandler();
@@ -29,7 +29,7 @@ export function initializeBackgroundService() {
 
   // Handle extension install/update
   chrome.runtime.onInstalled.addListener(async (details) => {
-    console.log('ADO Mentions: Extension installed/updated', details.reason);
+    console.log('ADO Notifications: Extension installed/updated', details.reason);
 
     // Initialize badge
     await updateBadge();
@@ -40,7 +40,7 @@ export function initializeBackgroundService() {
 
   // Handle browser startup
   chrome.runtime.onStartup.addListener(async () => {
-    console.log('ADO Mentions: Browser started');
+    console.log('ADO Notifications: Browser started');
 
     // Restore badge state
     await updateBadge();
@@ -50,7 +50,7 @@ export function initializeBackgroundService() {
   });
 
   // Log that initialization is complete
-  console.log('ADO Mentions: Background service initialized');
+  console.log('ADO Notifications: Background service initialized');
 }
 
 // Re-export for convenience
