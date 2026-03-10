@@ -59,6 +59,7 @@ export const MESSAGE_TYPES = {
   // Preferences
   UPDATE_PREFERENCES: 'UPDATE_PREFERENCES',
 
-  // From content script (future)
+  // From content script
   MENTION_DETECTED: 'MENTION_DETECTED',
+  COMMENT_ADDED: 'COMMENT_ADDED',
 };

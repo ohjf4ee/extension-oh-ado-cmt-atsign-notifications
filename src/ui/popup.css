@@ -394,12 +394,20 @@ body {
   background: var(--success-bg);
   padding: 2px 6px;
   border-radius: 3px;
-  flex-shrink: 0;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .mention-replied-indicator svg {
   width: 10px;
   height: 10px;
+  flex-shrink: 0;
+}
+
+.mention-replied-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Empty states */

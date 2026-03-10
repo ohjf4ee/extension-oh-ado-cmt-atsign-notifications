@@ -126,6 +126,16 @@ export async function handleMessage(message, sender) {
       return { success: true };
     }
 
+    case MESSAGE_TYPES.COMMENT_ADDED: {
+      // From content script - user added a comment on ADO page
+      console.log('Content script detected comment submission, triggering refresh');
+      // Trigger a refresh to pick up the new comment
+      pollAllOrganizations().catch(err => {
+        console.error('Error refreshing after comment:', err);
+      });
+      return { success: true };
+    }
+
     default:
       throw new Error(`Unknown message type: ${message.type}`);
   }

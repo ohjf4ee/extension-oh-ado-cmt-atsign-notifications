@@ -42,11 +42,12 @@ export function mergeMentions(existing, incoming) {
       existing.push(mention);
       added.push(mention);
     } else {
-      // Check if anything changed (timestamp or userCommentedAfter status)
+      // Check if anything changed (timestamp, userCommentedAfter status, or reply preview)
       const timestampChanged = mention.timestamp > existingMention.timestamp;
       const userCommentedChanged = mention.userCommentedAfter !== existingMention.userCommentedAfter;
+      const replyPreviewChanged = mention.userReplyPreview !== existingMention.userReplyPreview;
 
-      if (timestampChanged || userCommentedChanged) {
+      if (timestampChanged || userCommentedChanged || replyPreviewChanged) {
         Object.assign(existingMention, mention);
         updated.push(existingMention);
       }

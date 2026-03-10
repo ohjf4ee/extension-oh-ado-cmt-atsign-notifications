@@ -17,6 +17,13 @@
     "service_worker": "background.js",
     "type": "module"
   },
+  "content_scripts": [
+    {
+      "matches": ["https://dev.azure.com/*", "https://*.dev.azure.com/*"],
+      "js": ["src/content/comment-observer.js"],
+      "run_at": "document_idle"
+    }
+  ],
   "action": {
     "default_popup": "src/ui/popup.html",
     "default_icon": {

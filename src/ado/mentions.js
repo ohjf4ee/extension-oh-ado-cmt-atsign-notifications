@@ -155,13 +155,20 @@ async function extractMentionsFromWorkItem(apiClient, workItem, currentUser) {
     if (isMention) {
       const mentionTimestamp = new Date(comment.createdDate).getTime();
 
-      // Check if current user has commented after this mention
-      const userCommentedAfter = comments.some(c => {
+      // Find the user's first comment after this mention (chronologically next)
+      let userCommentedAfter = false;
+      let userReplyPreview = null;
+      let earliestReplyTime = Infinity;
+      for (const c of comments) {
         const isUserComment = isCommentByUser(c, currentUser);
         const commentTime = new Date(c.createdDate).getTime();
         const isAfter = commentTime > mentionTimestamp;
-        return isUserComment && isAfter;
-      });
+        if (isUserComment && isAfter && commentTime < earliestReplyTime) {
+          userCommentedAfter = true;
+          earliestReplyTime = commentTime;
+          userReplyPreview = extractPreview(c.text, 200);
+        }
+      }
       console.log(`Mention ${comment.id}: userCommentedAfter=${userCommentedAfter}`);
 
       mentions.push({
@@ -184,6 +191,7 @@ async function extractMentionsFromWorkItem(apiClient, workItem, currentUser) {
         timestamp: comment.createdDate,
         url: buildWorkItemCommentUrl(apiClient.orgUrl, projectName, workItem.id, comment.id),
         userCommentedAfter,
+        userReplyPreview,
       });
     }
   }

@@ -145,10 +145,13 @@ function renderMentions() {
 }
 
 function renderMentionItem(mention, isRead) {
+  const replyText = mention.userReplyPreview
+    ? `You commented: ${escapeHtml(mention.userReplyPreview)}`
+    : 'You commented';
   const youCommentedIndicator = mention.userCommentedAfter
-    ? `<span class="mention-replied-indicator" title="You commented on this item after being mentioned">
+    ? `<span class="mention-replied-indicator" title="${escapeHtml(replyText)}">
         <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm3.854 5.354-4.5 4.5a.5.5 0 0 1-.708 0l-2-2a.5.5 0 1 1 .708-.708L7 9.793l4.146-4.147a.5.5 0 0 1 .708.708z"/></svg>
-        You commented
+        <span class="mention-replied-text">${replyText}</span>
       </span>`
     : '';
 
@@ -160,22 +163,22 @@ function renderMentionItem(mention, isRead) {
     <article class="mention-item ${isRead ? '' : 'unread'}" data-id="${escapeHtml(mention.id)}" data-url="${escapeHtml(mention.url)}">
       <div class="mention-unread-indicator"></div>
       <div class="mention-content">
-        <div class="mention-header">
-          <span class="mention-author">${escapeHtml(mention.mentionedBy.displayName)}</span>
-          ${youCommentedIndicator}
-          <span class="mention-time" title="${escapeHtml(mention.timestamp)}">
-            ${formatRelativeTime(mention.timestamp)}
-          </span>
+        <div class="mention-meta">
+          <span>${escapeHtml(mention.orgName)}</span>
+          <span>${escapeHtml(mention.projectName)}</span>
         </div>
         <div class="mention-title">
           <span class="mention-type-badge ${mention.type}">${mention.type}</span>
           <span>${escapeHtml(mention.itemTitle)}</span>
         </div>
-        <div class="mention-preview">${escapeHtml(mention.commentPreview)}</div>
-        <div class="mention-meta">
-          <span>${escapeHtml(mention.orgName)}</span>
-          <span>${escapeHtml(mention.projectName)}</span>
+        <div class="mention-header">
+          <span class="mention-author">${escapeHtml(mention.mentionedBy.displayName)}</span>
+          <span class="mention-time" title="${escapeHtml(mention.timestamp)}">
+            ${formatRelativeTime(mention.timestamp)}
+          </span>
         </div>
+        <div class="mention-preview">${escapeHtml(mention.commentPreview)}</div>
+        ${youCommentedIndicator}
       </div>
       <div class="mention-actions">
         ${actionButton}
