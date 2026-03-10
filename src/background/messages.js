@@ -19,7 +19,7 @@ import { pollAllOrganizations, schedulePolling } from './polling.js';
 /**
  * Handles incoming messages from popup and content scripts.
  */
-export async function handleMessage(message, sender) {
+export async function handleMessage(message) {
   const state = await loadState();
 
   switch (message.type) {
@@ -120,12 +120,6 @@ export async function handleMessage(message, sender) {
       return { success: true };
     }
 
-    case MESSAGE_TYPES.MENTION_DETECTED: {
-      // From content script (future implementation)
-      console.log('Content script detected mention:', message.payload);
-      return { success: true };
-    }
-
     case MESSAGE_TYPES.COMMENT_ADDED: {
       // From content script - user added a comment on ADO page
       console.log('Content script detected comment submission, triggering refresh');
@@ -133,6 +127,12 @@ export async function handleMessage(message, sender) {
       pollAllOrganizations().catch(err => {
         console.error('Error refreshing after comment:', err);
       });
+      return { success: true };
+    }
+
+    case MESSAGE_TYPES.CLEAR_ALL_DATA: {
+      await clearAllData();
+      await updateBadge();
       return { success: true };
     }
 
@@ -145,12 +145,12 @@ export async function handleMessage(message, sender) {
  * Sets up the message listener.
  */
 export function setupMessageHandler() {
-  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    handleMessage(message, sender)
+  chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+    handleMessage(message)
       .then(sendResponse)
       .catch(error => {
         console.error('Message handler error:', error);
-        sendResponse({ error: error.message });
+        sendResponse({ error: error?.message || String(error) });
       });
 
     // Return true to indicate async response

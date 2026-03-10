@@ -76,6 +76,32 @@ The extension will begin polling for notifications immediately.
 - Automatic backoff after consecutive failures
 - Respects ADO rate limits with automatic retry handling
 
+### Rate Limiting & Throttling
+
+Azure DevOps enforces rate limits (200 TSTUs per 5-minute window). The extension handles this as follows:
+
+**Current behavior:**
+
+- Honors `Retry-After` headers from ADO API responses
+- Implements a circuit breaker: after 3 consecutive failures, the extension enters a 15-minute backoff period
+- Skips polling for an organization if it's currently rate-limited
+
+**How you might notice throttling:**
+
+- Errors displayed in the Settings page for affected organizations
+- Delayed updates (mentions not appearing immediately)
+- "Rate limited" messages in the browser console (DevTools)
+
+**Known limitations:**
+
+- PR mention detection iterates through all projects sequentially, which may be slow for organizations with many projects
+- Work item batch fetches are sequential to avoid overwhelming the API
+
+**Future improvements (infrastructure exists but not yet active):**
+
+- Automatic retry with exponential backoff for transient failures
+- Parallel project iteration with rate limit awareness
+
 ### Content Script
 
 A content script runs on Azure DevOps pages to detect when you post comments, triggering an immediate refresh so mentions you've replied to update their status.
@@ -110,7 +136,6 @@ See [PRIVACY.md](PRIVACY.md) for the full privacy policy.
 │   ├── storage.js              # Encrypted storage module
 │   ├── ado/
 │   │   ├── api-client.js       # Azure DevOps REST API client
-│   │   ├── index.js            # ADO module exports
 │   │   └── mentions.js         # Mention/assignment detection logic
 │   ├── background/
 │   │   ├── index.js            # Background service initialization

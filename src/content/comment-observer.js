@@ -3,6 +3,8 @@
  * When the user adds a comment, it notifies the background service to refresh mentions.
  */
 
+// Note: This value must match MESSAGE_TYPES.COMMENT_ADDED in config.js.
+// Content scripts cannot use ES module imports in Manifest V3, so we duplicate the constant here.
 const MESSAGE_TYPE_COMMENT_ADDED = 'COMMENT_ADDED';
 
 /**
@@ -20,7 +22,6 @@ function debounce(fn, delay) {
  * Notifies the background service that a comment was added.
  */
 const notifyCommentAdded = debounce(() => {
-  console.log('ADO Notifications: Comment activity detected, triggering refresh');
   chrome.runtime.sendMessage({ type: MESSAGE_TYPE_COMMENT_ADDED }).catch(() => {
     // Extension context may be invalidated, ignore
   });
@@ -75,7 +76,7 @@ function setupObserver() {
     const ariaLabel = target.getAttribute('aria-label')?.toLowerCase() || '';
 
     // Check for common comment submission button patterns
-    if (buttonText.includes('save') && buttonText.includes('comment') ||
+    if ((buttonText.includes('save') && buttonText.includes('comment')) ||
         buttonText === 'comment' ||
         buttonText === 'reply' ||
         ariaLabel.includes('save comment') ||
@@ -96,8 +97,6 @@ function setupObserver() {
       }
     }
   }, true);
-
-  console.log('ADO Notifications: Comment observer initialized');
 }
 
 // Initialize when DOM is ready

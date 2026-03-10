@@ -16,24 +16,6 @@ export function createMentionId(orgUrl, type, itemId, commentId) {
 }
 
 /**
- * Parses a mention ID back into its components.
- */
-export function parseMentionId(id) {
-  const lastColonIndex = id.lastIndexOf(':');
-  const secondLastColonIndex = id.lastIndexOf(':', lastColonIndex - 1);
-  const thirdLastColonIndex = id.lastIndexOf(':', secondLastColonIndex - 1);
-
-  return {
-    orgUrl: id.substring(0, thirdLastColonIndex),
-    type: id.substring(thirdLastColonIndex + 1, secondLastColonIndex),
-    itemId: parseInt(id.substring(secondLastColonIndex + 1, lastColonIndex), 10),
-    commentId: id.substring(lastColonIndex + 1) === 'item'
-      ? null
-      : parseInt(id.substring(lastColonIndex + 1), 10),
-  };
-}
-
-/**
  * Checks if a comment HTML contains a mention of the given user.
  *
  * ADO comments use `data-vss-mention` attributes for @ mentions:
@@ -41,7 +23,6 @@ export function parseMentionId(id) {
  */
 export function commentMentionsUser(html, currentUser) {
   if (!html || !currentUser) {
-    console.log('commentMentionsUser: missing html or currentUser', { html: !!html, currentUser: !!currentUser });
     return false;
   }
 
@@ -54,7 +35,6 @@ export function commentMentionsUser(html, currentUser) {
 
   while ((match = mentionPattern.exec(html)) !== null) {
     const mentionedUserId = match[1];
-    console.log('Found mention ID in HTML:', mentionedUserId, 'comparing to user.id:', currentUser.id, 'user.publicAlias:', currentUser.publicAlias);
     if (mentionedUserId === currentUser.id ||
         mentionedUserId === currentUser.publicAlias) {
       return true;
@@ -67,17 +47,14 @@ export function commentMentionsUser(html, currentUser) {
     currentUser.emailAddress,
     currentUser.publicAlias,
   ].filter(Boolean);
-  console.log('Checking fallback patterns:', userPatterns);
 
   const lowerHtml = html.toLowerCase();
   for (const pattern of userPatterns) {
     if (pattern && lowerHtml.includes(`@${pattern.toLowerCase()}`)) {
-      console.log('Found fallback match for pattern:', pattern);
       return true;
     }
   }
 
-  console.log('No mention found for user');
   return false;
 }
 
@@ -168,59 +145,53 @@ function isCommentByUser(comment, currentUser) {
  */
 async function extractMentionsFromWorkItem(apiClient, workItem, currentUser) {
   const projectName = workItem.fields['System.TeamProject'];
-  console.log(`Fetching comments for work item ${workItem.id} in project ${projectName}`);
   const comments = await apiClient.getWorkItemComments(projectName, workItem.id);
-  console.log(`Work item ${workItem.id} has ${comments.length} comments`);
   const mentions = [];
 
   for (const comment of comments) {
-    console.log(`Checking comment ${comment.id} by ${comment.createdBy?.displayName}:`, comment.text?.substring(0, 200));
-    const isMention = commentMentionsUser(comment.text, currentUser);
-    console.log(`Comment ${comment.id} mentions user: ${isMention}`);
-    if (isMention) {
-      const mentionTimestamp = new Date(comment.createdDate).getTime();
+    if (!commentMentionsUser(comment.text, currentUser)) continue;
 
-      // Find the user's first comment after this mention (chronologically next)
-      let userCommentedAfter = false;
-      let userReplyPreview = null;
-      let earliestReplyTime = Infinity;
-      for (const c of comments) {
-        const isUserComment = isCommentByUser(c, currentUser);
-        const commentTime = new Date(c.createdDate).getTime();
-        const isAfter = commentTime > mentionTimestamp;
-        if (isUserComment && isAfter && commentTime < earliestReplyTime) {
-          userCommentedAfter = true;
-          earliestReplyTime = commentTime;
-          userReplyPreview = extractPreview(c.text, 200);
-        }
+    const mentionTimestamp = new Date(comment.createdDate).getTime();
+
+    // Find the user's first comment after this mention (chronologically next)
+    let userCommentedAfter = false;
+    let userReplyPreview = null;
+    let earliestReplyTime = Infinity;
+    for (const c of comments) {
+      const isUserComment = isCommentByUser(c, currentUser);
+      const commentTime = new Date(c.createdDate).getTime();
+      const isAfter = commentTime > mentionTimestamp;
+      if (isUserComment && isAfter && commentTime < earliestReplyTime) {
+        userCommentedAfter = true;
+        earliestReplyTime = commentTime;
+        userReplyPreview = extractPreview(c.text, 200);
       }
-      console.log(`Mention ${comment.id}: userCommentedAfter=${userCommentedAfter}`);
-
-      mentions.push({
-        id: createMentionId(apiClient.orgUrl, 'workitem', workItem.id, comment.id),
-        orgUrl: apiClient.orgUrl,
-        orgName: apiClient.orgName,
-        type: 'workitem',
-        subtype: 'mention',
-        itemId: workItem.id,
-        itemTitle: workItem.fields['System.Title'],
-        itemType: workItem.fields['System.WorkItemType'],
-        projectName,
-        repositoryName: null,
-        commentId: comment.id,
-        commentHtml: comment.text,
-        commentPreview: extractPreview(comment.text),
-        mentionedBy: {
-          displayName: comment.createdBy.displayName,
-          uniqueName: comment.createdBy.uniqueName,
-          imageUrl: comment.createdBy.imageUrl,
-        },
-        timestamp: comment.createdDate,
-        url: buildWorkItemCommentUrl(apiClient.orgUrl, projectName, workItem.id, comment.id),
-        userCommentedAfter,
-        userReplyPreview,
-      });
     }
+
+    mentions.push({
+      id: createMentionId(apiClient.orgUrl, 'workitem', workItem.id, comment.id),
+      orgUrl: apiClient.orgUrl,
+      orgName: apiClient.orgName,
+      type: 'workitem',
+      subtype: 'mention',
+      itemId: workItem.id,
+      itemTitle: workItem.fields['System.Title'],
+      itemType: workItem.fields['System.WorkItemType'],
+      projectName,
+      repositoryName: null,
+      commentId: comment.id,
+      commentHtml: comment.text,
+      commentPreview: extractPreview(comment.text),
+      mentionedBy: {
+        displayName: comment.createdBy.displayName,
+        uniqueName: comment.createdBy.uniqueName,
+        imageUrl: comment.createdBy.imageUrl,
+      },
+      timestamp: comment.createdDate,
+      url: buildWorkItemCommentUrl(apiClient.orgUrl, projectName, workItem.id, comment.id),
+      userCommentedAfter,
+      userReplyPreview,
+    });
   }
 
   return mentions;
@@ -231,12 +202,11 @@ async function extractMentionsFromWorkItem(apiClient, workItem, currentUser) {
  *
  * This is the primary detection strategy. The @recentMentions macro
  * returns work items where the current user was mentioned in the last 30 days.
+ *
+ * @param {AdoApiClient} apiClient - Authenticated API client
+ * @param {Object} currentUser - Current user info from apiClient.getCurrentUser()
  */
-export async function detectWorkItemMentions(apiClient) {
-  // Get current user for mention matching
-  const currentUser = await apiClient.getCurrentUser();
-  console.log('Current user for mention detection:', currentUser);
-
+export async function detectWorkItemMentions(apiClient, currentUser) {
   // Query for work items where user was mentioned
   const wiql = `
     SELECT [System.Id], [System.Title], [System.TeamProject], [System.ChangedDate], [System.WorkItemType]
@@ -245,20 +215,15 @@ export async function detectWorkItemMentions(apiClient) {
     ORDER BY [System.ChangedDate] DESC
   `;
 
-  console.log('Executing WIQL query for @recentMentions...');
   const workItemRefs = await apiClient.executeWiql(wiql);
-  console.log('WIQL returned work items:', workItemRefs.length, workItemRefs);
 
   if (workItemRefs.length === 0) {
-    console.log('No work items found with @recentMentions');
     return [];
   }
 
   // Batch fetch work item details
   const workItemIds = workItemRefs.map(wi => wi.id);
-  console.log('Fetching work item details for IDs:', workItemIds);
 
-  // Handle batching if more than max per request
   const allWorkItems = [];
   for (let i = 0; i < workItemIds.length; i += API_CONFIG.maxWorkItemsPerBatch) {
     const batchIds = workItemIds.slice(i, i + API_CONFIG.maxWorkItemsPerBatch);
@@ -269,13 +234,12 @@ export async function detectWorkItemMentions(apiClient) {
       'System.ChangedDate',
       'System.WorkItemType',
     ]);
-    console.log('Batch fetch returned', batchItems.length, 'work items:', batchItems.map(wi => ({ id: wi.id, title: wi.fields?.['System.Title'] })));
     allWorkItems.push(...batchItems);
   }
-  console.log('Total work items fetched:', allWorkItems.length);
 
   // Extract mentions from each work item's comments
   const allMentions = [];
+  const warnings = [];
   for (const workItem of allWorkItems) {
     try {
       const mentions = await extractMentionsFromWorkItem(apiClient, workItem, currentUser);
@@ -283,22 +247,22 @@ export async function detectWorkItemMentions(apiClient) {
     } catch (error) {
       // Log but continue with other work items
       console.error(`Error extracting mentions from work item ${workItem.id}:`, error);
+      warnings.push(`Work item #${workItem.id}: ${error.message || 'fetch failed'}`);
     }
   }
 
-  return allMentions;
+  return { mentions: allMentions, warnings };
 }
 
 /**
  * Detects work items assigned to the current user.
  *
  * @param {AdoApiClient} apiClient - Authenticated API client
+ * @param {Object} currentUser - Current user info from apiClient.getCurrentUser()
  * @param {string|null} lastCheckTime - ISO timestamp of last check (null for first run)
- * @returns {Promise<Array>} Assignment notification records
+ * @returns {Promise<{assignments: Array, warnings: string[]}>} Assignment notification records with warnings
  */
-export async function detectWorkItemAssignments(apiClient, lastCheckTime = null) {
-  const currentUser = await apiClient.getCurrentUser();
-
+export async function detectWorkItemAssignments(apiClient, currentUser, lastCheckTime = null) {
   // Build the date filter clause
   // WIQL only accepts date-only values (no time), so convert ISO timestamp to date
   let sinceClause;
@@ -321,12 +285,18 @@ export async function detectWorkItemAssignments(apiClient, lastCheckTime = null)
     ORDER BY [System.ChangedDate] DESC
   `;
 
-  console.log('Executing WIQL for work item assignments...');
-  const workItemRefs = await apiClient.executeWiql(wiql);
-  console.log('Assignment WIQL returned', workItemRefs.length, 'work items');
+  const warnings = [];
+  let workItemRefs;
+  try {
+    workItemRefs = await apiClient.executeWiql(wiql);
+  } catch (error) {
+    console.error('Error querying assigned work items:', error);
+    warnings.push(`Assignment query failed: ${error.message || 'WIQL error'}`);
+    return { assignments: [], warnings };
+  }
 
   if (workItemRefs.length === 0) {
-    return [];
+    return { assignments: [], warnings };
   }
 
   // Batch fetch work item details
@@ -335,16 +305,21 @@ export async function detectWorkItemAssignments(apiClient, lastCheckTime = null)
 
   for (let i = 0; i < workItemIds.length; i += API_CONFIG.maxWorkItemsPerBatch) {
     const batchIds = workItemIds.slice(i, i + API_CONFIG.maxWorkItemsPerBatch);
-    const batchItems = await apiClient.getWorkItems(batchIds, [
-      'System.Id',
-      'System.Title',
-      'System.TeamProject',
-      'System.AssignedTo',
-      'System.ChangedDate',
-      'System.WorkItemType',
-      'System.ChangedBy',
-    ]);
-    allWorkItems.push(...batchItems);
+    try {
+      const batchItems = await apiClient.getWorkItems(batchIds, [
+        'System.Id',
+        'System.Title',
+        'System.TeamProject',
+        'System.AssignedTo',
+        'System.ChangedDate',
+        'System.WorkItemType',
+        'System.ChangedBy',
+      ]);
+      allWorkItems.push(...batchItems);
+    } catch (error) {
+      console.error(`Error fetching assignment batch starting at ${batchIds[0]}:`, error);
+      warnings.push(`Assignment batch #${batchIds[0]}: ${error.message || 'fetch failed'}`);
+    }
   }
 
   const assignments = [];
@@ -389,7 +364,7 @@ export async function detectWorkItemAssignments(apiClient, lastCheckTime = null)
     });
   }
 
-  return assignments;
+  return { assignments, warnings };
 }
 
 /**
@@ -407,7 +382,11 @@ async function extractMentionsFromPR(apiClient, pr, currentUser, threadCache, cu
     threads = await apiClient.getPullRequestThreads(projectName, repositoryId, pr.pullRequestId);
   } catch (error) {
     console.error(`Error fetching threads for PR ${pr.pullRequestId}:`, error);
-    return { mentions: [], maxDate: cachedMaxDate };
+    return {
+      mentions: [],
+      maxDate: cachedMaxDate,
+      warning: `PR #${pr.pullRequestId}: ${error.message || 'thread fetch failed'}`,
+    };
   }
 
   let newMaxDate = cachedMaxDate;
@@ -497,11 +476,13 @@ async function extractMentionsFromPR(apiClient, pr, currentUser, threadCache, cu
     }
   }
 
-  return { mentions, maxDate: newMaxDate };
+  return { mentions, maxDate: newMaxDate, warning: null };
 }
 
 /**
- * Checks if user is a reviewer on a PR and creates a notification if appropriate.
+ * Checks if user is a reviewer on a PR and creates a partial notification object.
+ * Returns null if user is not a reviewer or shouldn't be notified.
+ * Caller must set id, orgUrl, orgName, and url fields.
  */
 function checkReviewerAssignment(pr, currentUser, cutoffTime) {
   // Check if the PR was created after our cutoff
@@ -510,14 +491,14 @@ function checkReviewerAssignment(pr, currentUser, cutoffTime) {
     return null;
   }
 
-  // Check if user is a reviewer
+  // Find the user's reviewer entry (if any)
   const reviewers = pr.reviewers || [];
-  const isReviewer = reviewers.some(r =>
+  const userReviewerEntry = reviewers.find(r =>
     r.id === currentUser.id ||
     r.uniqueName?.toLowerCase() === currentUser.emailAddress?.toLowerCase()
   );
 
-  if (!isReviewer) {
+  if (!userReviewerEntry) {
     return null;
   }
 
@@ -529,15 +510,11 @@ function checkReviewerAssignment(pr, currentUser, cutoffTime) {
 
   const projectName = pr.repository.project.name;
   const repositoryName = pr.repository.name;
+  const isRequired = userReviewerEntry.isRequired === true;
+  const reviewerType = isRequired ? 'a required reviewer' : 'an optional reviewer';
 
+  // Return partial object - caller will set id, orgUrl, orgName, and url
   return {
-    id: createMentionId(pr.repository.project.name.includes('dev.azure.com')
-      ? pr.repository.project.name
-      : `https://dev.azure.com/${pr.repository.project.name}`.replace(/\/[^\/]+$/, ''),
-      'pullrequest', pr.pullRequestId, 'reviewer'),
-    // Fix: Use apiClient.orgUrl which we don't have here, so we'll set it in detectPRMentions
-    _needsOrgUrl: true,
-    orgName: null, // Will be set by caller
     type: 'pullrequest',
     subtype: 'assignment',
     itemId: pr.pullRequestId,
@@ -547,20 +524,13 @@ function checkReviewerAssignment(pr, currentUser, cutoffTime) {
     repositoryName,
     commentId: null,
     commentHtml: null,
-    commentPreview: 'You were added as a reviewer',
+    commentPreview: `You were added as ${reviewerType}`,
     mentionedBy: {
       displayName: pr.createdBy?.displayName || 'Unknown',
       uniqueName: pr.createdBy?.uniqueName || '',
       imageUrl: pr.createdBy?.imageUrl || null,
     },
     timestamp: pr.creationDate,
-    url: buildPRCommentUrl(
-      '', // Placeholder, will be fixed by caller
-      projectName,
-      repositoryName,
-      pr.pullRequestId,
-      { isOverview: true }
-    ),
     userCommentedAfter: false,
     userReplyPreview: null,
   };
@@ -570,6 +540,7 @@ function checkReviewerAssignment(pr, currentUser, cutoffTime) {
  * Detects PR mentions and reviewer assignments.
  *
  * @param {AdoApiClient} apiClient - Authenticated API client
+ * @param {Object} currentUser - Current user info from apiClient.getCurrentUser()
  * @param {Object} options - Detection options
  * @param {number} [options.lookbackMs] - Lookback time in ms for first run (default 2 days)
  * @param {string|null} [options.lastPRPollTime] - ISO timestamp of last PR poll
@@ -577,15 +548,13 @@ function checkReviewerAssignment(pr, currentUser, cutoffTime) {
  * @param {boolean} [options.includeReviewerAssignments] - Include reviewer assignment notifications
  * @returns {Promise<{mentions: Array, newLastPollTime: string, newThreadCache: Object}>}
  */
-export async function detectPRMentions(apiClient, options = {}) {
+export async function detectPRMentions(apiClient, currentUser, options = {}) {
   const {
     lookbackMs = 7 * 24 * 60 * 60 * 1000, // 7 days
     lastPRPollTime = null,
     threadCache = {},
     includeReviewerAssignments = true,
   } = options;
-
-  const currentUser = await apiClient.getCurrentUser();
 
   // Determine cutoff time
   let cutoffTime;
@@ -597,17 +566,24 @@ export async function detectPRMentions(apiClient, options = {}) {
 
   // Get all projects
   let projects;
+  const warnings = [];
   try {
     projects = await apiClient.listProjects();
   } catch (error) {
     console.error('Error listing projects:', error);
-    return { mentions: [], newLastPollTime: new Date().toISOString(), newThreadCache: threadCache };
+    warnings.push(`Failed to list projects: ${error.message || 'API error'}`);
+    return { mentions: [], newLastPollTime: new Date().toISOString(), newThreadCache: threadCache, warnings };
   }
 
   const allMentions = [];
   const newThreadCache = { ...threadCache };
   const seenPRIds = new Set();
 
+  // TODO: Projects are processed sequentially to avoid overwhelming the API.
+  // For organizations with many projects, this may be slow. Consider:
+  // 1. Parallel processing with concurrency limit (e.g., 3 projects at a time)
+  // 2. Caching project list and only checking projects with recent PR activity
+  // 3. Using a cross-project PR search if ADO API supports it
   for (const project of projects) {
     try {
       // Get PRs where user is a reviewer
@@ -642,6 +618,11 @@ export async function detectPRMentions(apiClient, options = {}) {
 
         allMentions.push(...result.mentions);
 
+        // Collect warning if thread fetch failed
+        if (result.warning) {
+          warnings.push(result.warning);
+        }
+
         // Update thread cache with new max date
         if (result.maxDate) {
           newThreadCache[pr.pullRequestId] = result.maxDate;
@@ -651,7 +632,7 @@ export async function detectPRMentions(apiClient, options = {}) {
         if (includeReviewerAssignments) {
           const reviewerMention = checkReviewerAssignment(pr, currentUser, cutoffTime);
           if (reviewerMention) {
-            // Fix up the org URL and ID
+            // Complete the partial object with org-specific fields
             reviewerMention.id = createMentionId(apiClient.orgUrl, 'pullrequest', pr.pullRequestId, 'reviewer');
             reviewerMention.orgUrl = apiClient.orgUrl;
             reviewerMention.orgName = apiClient.orgName;
@@ -662,13 +643,13 @@ export async function detectPRMentions(apiClient, options = {}) {
               pr.pullRequestId,
               { isOverview: true }
             );
-            delete reviewerMention._needsOrgUrl;
             allMentions.push(reviewerMention);
           }
         }
       }
     } catch (error) {
       console.error(`Error processing PRs for project ${project.name}:`, error);
+      warnings.push(`Project ${project.name}: ${error.message || 'PR fetch failed'}`);
     }
   }
 
@@ -684,6 +665,7 @@ export async function detectPRMentions(apiClient, options = {}) {
     mentions: allMentions,
     newLastPollTime: new Date().toISOString(),
     newThreadCache,
+    warnings,
   };
 }
 
@@ -698,7 +680,7 @@ export async function detectPRMentions(apiClient, options = {}) {
  * @param {string|null} [options.lastPRPollTime] - ISO timestamp of last PR poll
  * @param {Object} [options.prThreadCache] - PR thread cache
  * @param {string|null} [options.lastAssignmentCheckTime] - ISO timestamp of last assignment check
- * @returns {Promise<{mentions: Mention[], prResult: Object|null}>}
+ * @returns {Promise<{mentions: Mention[], prResult: Object|null, warnings: string[]}>}
  */
 export async function detectMentions(apiClient, options = {}) {
   const {
@@ -710,29 +692,36 @@ export async function detectMentions(apiClient, options = {}) {
     lastAssignmentCheckTime = null,
   } = options;
 
+  // Get current user once and pass to all detection functions
+  const currentUser = await apiClient.getCurrentUser();
+
   const allMentions = [];
+  const allWarnings = [];
   let prResult = null;
 
   // Work item @mentions (uses @recentMentions WIQL)
   if (includeWorkItems) {
-    const wiMentions = await detectWorkItemMentions(apiClient);
-    allMentions.push(...wiMentions);
+    const wiResult = await detectWorkItemMentions(apiClient, currentUser);
+    allMentions.push(...wiResult.mentions);
+    allWarnings.push(...wiResult.warnings);
   }
 
   // Work item assignments
   if (includeAssignments) {
-    const assignments = await detectWorkItemAssignments(apiClient, lastAssignmentCheckTime);
-    allMentions.push(...assignments);
+    const assignResult = await detectWorkItemAssignments(apiClient, currentUser, lastAssignmentCheckTime);
+    allMentions.push(...assignResult.assignments);
+    allWarnings.push(...assignResult.warnings);
   }
 
   // PR @mentions and reviewer assignments
   if (includePRs) {
-    prResult = await detectPRMentions(apiClient, {
+    prResult = await detectPRMentions(apiClient, currentUser, {
       lastPRPollTime,
       threadCache: prThreadCache,
       includeReviewerAssignments: includeAssignments,
     });
     allMentions.push(...prResult.mentions);
+    allWarnings.push(...prResult.warnings);
   }
 
   // Deduplicate by ID (safety measure)
@@ -748,5 +737,6 @@ export async function detectMentions(apiClient, options = {}) {
   return {
     mentions: dedupedMentions,
     prResult,
+    warnings: allWarnings,
   };
 }

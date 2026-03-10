@@ -205,7 +205,7 @@ function renderOrgList() {
 
   elements.orgList.innerHTML = orgs
     .map(org => {
-      const isAuthError = org.lastError && org.lastError.includes('Authentication failed');
+      const isAuthError = org.lastError && org.lastError.includes('Auth failed');
       const statusClass = isAuthError ? 'auth-error' : (org.lastError ? 'error' : '');
       const statusText = org.lastError
         ? escapeHtml(org.lastError)
@@ -297,7 +297,12 @@ function setupEventListeners() {
     const mentionId = item.dataset.id;
 
     // Open URL
-    await chrome.tabs.create({ url });
+    try {
+      await chrome.tabs.create({ url });
+    } catch (error) {
+      showError('Failed to open link');
+      return;
+    }
 
     // Mark as read
     await markAsRead(mentionId);
@@ -382,7 +387,7 @@ function setupEventListeners() {
   });
 
   // Create PAT link
-  elements.createPatLink.addEventListener('click', (e) => {
+  elements.createPatLink.addEventListener('click', async (e) => {
     e.preventDefault();
     const orgUrl = elements.orgUrl.value.trim();
     let patUrl = 'https://dev.azure.com/_usersSettings/tokens';
@@ -395,7 +400,11 @@ function setupEventListeners() {
       }
     }
 
-    chrome.tabs.create({ url: patUrl });
+    try {
+      await chrome.tabs.create({ url: patUrl });
+    } catch (error) {
+      showError('Failed to open PAT page');
+    }
   });
 
   // Notifications toggle
@@ -411,7 +420,7 @@ function setupEventListeners() {
   // Clear data
   elements.clearDataBtn.addEventListener('click', async () => {
     if (confirm('Are you sure you want to clear all extension data? This cannot be undone.')) {
-      await chrome.storage.local.clear();
+      await chrome.runtime.sendMessage({ type: MESSAGE_TYPES.CLEAR_ALL_DATA });
       await loadState();
       toggleView('mentions');
     }
@@ -562,7 +571,18 @@ function showLoading(show) {
 
 function showError(message) {
   console.error(message);
-  // Could add a toast notification here
+  // Show error in footer temporarily
+  const originalText = elements.lastUpdated.textContent;
+  const hadError = elements.lastUpdated.classList.contains('error');
+  elements.lastUpdated.textContent = message;
+  elements.lastUpdated.classList.add('error');
+  // Restore after 3 seconds unless there was already an org error showing
+  if (!hadError) {
+    setTimeout(() => {
+      elements.lastUpdated.textContent = originalText;
+      elements.lastUpdated.classList.remove('error');
+    }, 3000);
+  }
 }
 
 // =============================================================================

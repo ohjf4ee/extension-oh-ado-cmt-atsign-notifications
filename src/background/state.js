@@ -11,21 +11,16 @@ export {
   saveReadIds,
   updateLastPoll,
   savePreferences,
-  saveCurrentUser,
   getDecryptedPat,
   addOrganization,
   updateOrganization,
   removeOrganization,
   clearAllData,
-  // PR poll state
-  getLastPRPoll,
+  // PR poll state (batched)
+  getPollState,
   updateLastPRPoll,
-  getPRThreadCache,
-  updatePRThreadCache,
   savePRThreadCache,
-  clearPRThreadCache,
   // Assignment check state
-  getLastAssignmentCheck,
   updateLastAssignmentCheck,
 } from '../storage.js';
 
@@ -73,12 +68,4 @@ export function mergeMentions(existing, incoming) {
   }
 
   return { added, updated };
-}
-
-/**
- * Gets the count of unread mentions.
- */
-export async function getUnreadCount() {
-  const state = await loadState();
-  return state.mentions.filter(m => !state.readIds.has(m.id)).length;
 }

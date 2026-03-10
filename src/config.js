@@ -9,7 +9,6 @@ export const STORAGE_KEYS = {
   READ_IDS: 'ado_read_ids',
   LAST_POLL: 'ado_last_poll',
   PREFERENCES: 'ado_preferences',
-  CURRENT_USERS: 'ado_current_users',
   LAST_PR_POLL: 'ado_last_pr_poll',
   PR_THREAD_CACHE: 'ado_pr_thread_cache',
   LAST_ASSIGNMENT_CHECK: 'ado_last_assign',
@@ -18,7 +17,6 @@ export const STORAGE_KEYS = {
 // Default preferences
 export const DEFAULT_PREFERENCES = {
   notificationsEnabled: false,
-  notificationSound: true,
   showPreviewInNotification: true,
   defaultPollIntervalMinutes: 5,
 };
@@ -63,6 +61,8 @@ export const MESSAGE_TYPES = {
   UPDATE_PREFERENCES: 'UPDATE_PREFERENCES',
 
   // From content script
-  MENTION_DETECTED: 'MENTION_DETECTED',
   COMMENT_ADDED: 'COMMENT_ADDED',
+
+  // Data management
+  CLEAR_ALL_DATA: 'CLEAR_ALL_DATA',
 };

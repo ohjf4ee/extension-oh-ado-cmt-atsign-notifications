@@ -5,12 +5,15 @@
 import { loadState, saveReadIds } from './state.js';
 
 // Badge blink state
-const BLINK_ALARM_NAME = 'badge_blink';
+const BLINK_KEEPALIVE_ALARM = 'badge_blink_keepalive';
+const BLINK_INTERVAL_MS = 500;
+
 let blinkState = {
   isBlinking: false,
   isVisible: true,
   unreadCount: 0,
   previousUnreadCount: 0,
+  intervalId: null,
 };
 
 /**
@@ -18,7 +21,7 @@ let blinkState = {
  */
 function hasAuthErrors(organizations) {
   return organizations.some(org =>
-    org.lastError && org.lastError.includes('Authentication failed')
+    org.lastError && org.lastError.includes('Auth failed')
   );
 }
 
@@ -33,8 +36,6 @@ export async function updateBadge(options = {}) {
   const unreadCount = state.mentions.filter(m => !state.readIds.has(m.id)).length;
   const authError = hasAuthErrors(state.organizations);
 
-  console.log('updateBadge: mentions=', state.mentions.length, 'unread=', unreadCount, 'authError=', authError);
-
   // Check if unread count increased (new mentions arrived)
   if (checkForNewMentions && unreadCount > blinkState.previousUnreadCount && unreadCount > 0) {
     startBadgeBlink(unreadCount);
@@ -42,27 +43,33 @@ export async function updateBadge(options = {}) {
   blinkState.previousUnreadCount = unreadCount;
   blinkState.unreadCount = unreadCount;
 
-  if (authError) {
-    // Show error indicator - exclamation mark with red background
-    await chrome.action.setBadgeText({ text: '!' });
-    await chrome.action.setBadgeBackgroundColor({ color: '#A80000' });
-    await chrome.action.setBadgeTextColor({ color: '#FFFFFF' });
-  } else if (unreadCount === 0) {
-    await chrome.action.setBadgeText({ text: '' });
-    stopBadgeBlink();
-  } else if (unreadCount > 99) {
-    await chrome.action.setBadgeText({ text: '99+' });
-    await chrome.action.setBadgeBackgroundColor({ color: '#FFFFFF' });
-    await chrome.action.setBadgeTextColor({ color: '#323130' });
-  } else {
-    await chrome.action.setBadgeText({ text: String(unreadCount) });
-    await chrome.action.setBadgeBackgroundColor({ color: '#FFFFFF' });
-    await chrome.action.setBadgeTextColor({ color: '#323130' });
+  try {
+    if (authError) {
+      // Show error indicator - exclamation mark with red background
+      await chrome.action.setBadgeText({ text: '!' });
+      await chrome.action.setBadgeBackgroundColor({ color: '#A80000' });
+      await chrome.action.setBadgeTextColor({ color: '#FFFFFF' });
+    } else if (unreadCount === 0) {
+      await chrome.action.setBadgeText({ text: '' });
+      stopBadgeBlink();
+    } else if (unreadCount > 99) {
+      await chrome.action.setBadgeText({ text: '99+' });
+      await chrome.action.setBadgeBackgroundColor({ color: '#FFFFFF' });
+      await chrome.action.setBadgeTextColor({ color: '#323130' });
+    } else {
+      await chrome.action.setBadgeText({ text: String(unreadCount) });
+      await chrome.action.setBadgeBackgroundColor({ color: '#FFFFFF' });
+      await chrome.action.setBadgeTextColor({ color: '#323130' });
+    }
+  } catch (error) {
+    console.error('Failed to update badge:', error);
   }
 }
 
 /**
  * Starts the badge blinking effect.
+ * Uses setInterval for the actual blink (works while service worker is active)
+ * and a keepalive alarm to restart blinking if the service worker wakes from sleep.
  */
 function startBadgeBlink(unreadCount) {
   if (blinkState.isBlinking) return;
@@ -71,12 +78,28 @@ function startBadgeBlink(unreadCount) {
   blinkState.isVisible = true;
   blinkState.unreadCount = unreadCount;
 
-  // Create alarm to toggle badge visibility every 500ms
-  chrome.alarms.create(BLINK_ALARM_NAME, {
-    periodInMinutes: 0.5 / 60, // 500ms = 0.5 seconds
-  });
+  startBlinkInterval();
 
-  console.log('Badge blink started');
+  // Create a keepalive alarm (1 minute minimum) that will restart the blink
+  // interval if the service worker wakes up after sleeping
+  chrome.alarms.create(BLINK_KEEPALIVE_ALARM, {
+    periodInMinutes: 1,
+  });
+}
+
+/**
+ * Starts or restarts the blink interval timer.
+ * Called on initial start and when waking from service worker sleep.
+ */
+function startBlinkInterval() {
+  // Clear any existing interval first
+  if (blinkState.intervalId) {
+    clearInterval(blinkState.intervalId);
+  }
+
+  blinkState.intervalId = setInterval(() => {
+    toggleBadgeBlink();
+  }, BLINK_INTERVAL_MS);
 }
 
 /**
@@ -88,12 +111,17 @@ export function stopBadgeBlink() {
   blinkState.isBlinking = false;
   blinkState.isVisible = true;
 
-  chrome.alarms.clear(BLINK_ALARM_NAME);
+  // Clear the blink interval
+  if (blinkState.intervalId) {
+    clearInterval(blinkState.intervalId);
+    blinkState.intervalId = null;
+  }
+
+  // Clear the keepalive alarm
+  chrome.alarms.clear(BLINK_KEEPALIVE_ALARM);
 
   // Ensure badge is visible when stopping
   updateBadgeDisplay();
-
-  console.log('Badge blink stopped');
 }
 
 /**
@@ -110,23 +138,32 @@ async function toggleBadgeBlink() {
  * Updates the badge display based on current blink state.
  */
 async function updateBadgeDisplay() {
-  if (blinkState.isVisible && blinkState.unreadCount > 0) {
-    const text = blinkState.unreadCount > 99 ? '99+' : String(blinkState.unreadCount);
-    await chrome.action.setBadgeText({ text });
-    await chrome.action.setBadgeBackgroundColor({ color: '#FFFFFF' });
-    await chrome.action.setBadgeTextColor({ color: '#323130' });
-  } else {
-    await chrome.action.setBadgeText({ text: '' });
+  try {
+    if (blinkState.isVisible && blinkState.unreadCount > 0) {
+      const text = blinkState.unreadCount > 99 ? '99+' : String(blinkState.unreadCount);
+      await chrome.action.setBadgeText({ text });
+      await chrome.action.setBadgeBackgroundColor({ color: '#FFFFFF' });
+      await chrome.action.setBadgeTextColor({ color: '#323130' });
+    } else {
+      await chrome.action.setBadgeText({ text: '' });
+    }
+  } catch (error) {
+    console.error('Failed to update badge display:', error);
   }
 }
 
 /**
- * Sets up the blink alarm handler.
+ * Sets up the blink keepalive alarm handler.
+ * When the alarm fires after service worker sleep, restart the blink interval.
  */
 export function setupBlinkAlarmHandler() {
   chrome.alarms.onAlarm.addListener((alarm) => {
-    if (alarm.name === BLINK_ALARM_NAME) {
-      toggleBadgeBlink();
+    if (alarm.name === BLINK_KEEPALIVE_ALARM && blinkState.isBlinking) {
+      // Only restart if interval isn't already running
+      // (intervalId will be null if service worker slept and lost it)
+      if (!blinkState.intervalId) {
+        startBlinkInterval();
+      }
     }
   });
 }
@@ -197,20 +234,24 @@ export async function dispatchNotifications(newMentions, state) {
  */
 export function setupNotificationClickHandler() {
   chrome.notifications.onClicked.addListener(async (notificationId) => {
-    const state = await loadState();
-    const mention = state.mentions.find(m => m.id === notificationId);
+    try {
+      const state = await loadState();
+      const mention = state.mentions.find(m => m.id === notificationId);
 
-    if (mention) {
-      // Open the mention URL
-      await chrome.tabs.create({ url: mention.url });
+      if (mention) {
+        // Open the mention URL
+        await chrome.tabs.create({ url: mention.url });
 
-      // Mark as read
-      state.readIds.add(mention.id);
-      await saveReadIds(state.readIds);
-      await updateBadge();
+        // Mark as read
+        state.readIds.add(mention.id);
+        await saveReadIds(state.readIds);
+        await updateBadge();
+      }
+
+      // Clear notification
+      await chrome.notifications.clear(notificationId);
+    } catch (error) {
+      console.error('Failed to handle notification click:', error);
     }
-
-    // Clear notification
-    await chrome.notifications.clear(notificationId);
   });
 }

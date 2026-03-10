@@ -12,11 +12,9 @@ import {
   updateLastPoll,
   getDecryptedPat,
   mergeMentions,
-  getLastPRPoll,
+  getPollState,
   updateLastPRPoll,
-  getPRThreadCache,
   savePRThreadCache,
-  getLastAssignmentCheck,
   updateLastAssignmentCheck,
 } from './state.js';
 import { updateBadge, dispatchNotifications } from './notifications.js';
@@ -81,8 +79,6 @@ export async function schedulePolling() {
  * Polls a single organization for mentions.
  */
 export async function pollOrganization(org) {
-  console.log(`Polling ${org.orgName}...`);
-
   const failureCount = failureCounts.get(org.orgUrl) || 0;
 
   // Circuit breaker: skip if too many consecutive failures
@@ -98,25 +94,36 @@ export async function pollOrganization(org) {
     // Create API client
     const apiClient = new AdoApiClient(org.orgUrl, pat);
 
-    // Check rate limit
+    // Check rate limit (note: currently unlikely to trigger since ApiClient is
+    // instantiated fresh each poll, but kept for consistency and future use)
     if (apiClient.isRateLimited()) {
       console.log(`${org.orgName} is rate limited, skipping`);
+
+      // Inform user via lastError so they see the rate limit status
+      const state = await loadState();
+      const orgs = state.organizations;
+      const orgIndex = orgs.findIndex(o => o.orgUrl === org.orgUrl);
+      if (orgIndex >= 0) {
+        const retrySeconds = Math.ceil(apiClient.getRetryAfterMs() / 1000);
+        orgs[orgIndex].lastError = `Rate limited. Retrying in ${retrySeconds}s.`;
+        await saveOrganizations(orgs);
+        await updateBadge(); // Show error indicator
+      }
+
       return { success: false, rateLimited: true };
     }
 
-    // Load state for PR and assignment tracking
-    const lastPRPollTime = await getLastPRPoll(org.orgUrl);
-    const prThreadCache = await getPRThreadCache(org.orgUrl);
-    const lastAssignmentCheckTime = await getLastAssignmentCheck(org.orgUrl);
+    // Load poll state in single batched read
+    const pollState = await getPollState(org.orgUrl);
 
     // Detect all notification types
     const result = await detectMentions(apiClient, {
       includeWorkItems: true,
       includePRs: true,
       includeAssignments: true,
-      lastPRPollTime,
-      prThreadCache,
-      lastAssignmentCheckTime,
+      lastPRPollTime: pollState.lastPRPollTime,
+      prThreadCache: pollState.prThreadCache,
+      lastAssignmentCheckTime: pollState.lastAssignmentCheckTime,
     });
 
     // Load current state and merge mentions
@@ -136,12 +143,20 @@ export async function pollOrganization(org) {
       await savePRThreadCache(org.orgUrl, result.prResult.newThreadCache);
     }
 
-    // Clear any previous error
-    if (org.lastError) {
-      org.lastError = null;
-      const orgs = state.organizations;
-      const orgIndex = orgs.findIndex(o => o.orgUrl === org.orgUrl);
-      if (orgIndex >= 0) {
+    // Handle partial failures (warnings) or clear previous errors
+    const orgs = state.organizations;
+    const orgIndex = orgs.findIndex(o => o.orgUrl === org.orgUrl);
+    if (orgIndex >= 0) {
+      if (result.warnings && result.warnings.length > 0) {
+        // Show first warning to user (don't overwhelm with all of them)
+        const warningCount = result.warnings.length;
+        const warningMsg = warningCount === 1
+          ? result.warnings[0]
+          : `${warningCount} items failed to load`;
+        orgs[orgIndex].lastError = warningMsg;
+        await saveOrganizations(orgs);
+      } else if (org.lastError) {
+        // Clear previous error on full success
         orgs[orgIndex].lastError = null;
         await saveOrganizations(orgs);
       }

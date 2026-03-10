@@ -115,11 +115,11 @@ export class AdoApiClient {
     this.orgUrl = normalizeOrgUrl(orgUrl);
     this.orgName = extractOrgName(this.orgUrl);
     // Trim whitespace from PAT (common copy-paste issue)
-    const cleanPat = pat.trim();
-    this.authHeader = 'Basic ' + btoa(':' + cleanPat);
+    this.authHeader = 'Basic ' + btoa(':' + pat.trim());
+    // Note: retryAfterUntil is instance-scoped and not persisted. Rate limit
+    // state is only tracked within a single poll cycle, not across polls or
+    // service worker restarts.
     this.retryAfterUntil = 0;
-    console.log('AdoApiClient created for:', this.orgUrl);
-    console.log('PAT length:', cleanPat.length);
   }
 
   /**
@@ -184,6 +184,11 @@ export class AdoApiClient {
 
   /**
    * Makes a request with automatic retry on transient failures.
+   *
+   * TODO: This method is available but not currently used. Consider migrating
+   * API calls to use this method if users report transient failures or rate
+   * limiting issues. The polling circuit breaker handles most cases, but this
+   * would provide more granular retry behavior.
    */
   async fetchWithRetry(endpoint, options = {}, maxRetries = 3) {
     let lastError;
@@ -234,15 +239,12 @@ export class AdoApiClient {
   async getCurrentUser() {
     const connectionData = await this.fetch(`/_apis/connectionData`);
     const user = connectionData.authenticatedUser || {};
-    console.log('connectionData.authenticatedUser:', JSON.stringify(user, null, 2));
-    const result = {
+    return {
       displayName: user.providerDisplayName || user.customDisplayName || '',
       emailAddress: user.properties?.Account?.$value || '',
       id: user.id || '',
       publicAlias: user.publicAlias || '',
     };
-    console.log('getCurrentUser result:', result);
-    return result;
   }
 
   /**
@@ -268,10 +270,7 @@ export class AdoApiClient {
         },
       };
     } catch (error) {
-      console.error('validateConnection failed:', error);
-      console.error('Org URL:', this.orgUrl);
-      console.error('Error status:', error.status);
-      console.error('Error endpoint:', error.endpoint);
+      console.error('validateConnection failed:', this.orgUrl, error.status, error.endpoint, error);
 
       // Build detailed error info for display
       let details = '';
@@ -318,20 +317,6 @@ export class AdoApiClient {
     });
 
     return response.workItems || [];
-  }
-
-  /**
-   * Gets a single work item by ID.
-   *
-   * @param {number} id - Work item ID
-   * @param {string[]} [fields] - Optional list of fields to retrieve
-   */
-  async getWorkItem(id, fields = null) {
-    let endpoint = `/_apis/wit/workitems/${id}?api-version=${API_CONFIG.version}`;
-    if (fields && fields.length > 0) {
-      endpoint += `&fields=${fields.join(',')}`;
-    }
-    return this.fetch(endpoint);
   }
 
   /**
@@ -424,28 +409,4 @@ export class AdoApiClient {
     return response.value || [];
   }
 
-  /**
-   * Gets detailed information about a pull request.
-   *
-   * @param {string} project - Project name or ID
-   * @param {string} repositoryId - Repository ID or name
-   * @param {number} pullRequestId - Pull request ID
-   * @returns {Promise<Object>} Pull request details
-   */
-  async getPullRequest(project, repositoryId, pullRequestId) {
-    const endpoint = `/${encodeURIComponent(project)}/_apis/git/repositories/${encodeURIComponent(repositoryId)}/pullRequests/${pullRequestId}?api-version=${API_CONFIG.version}`;
-    return this.fetch(endpoint);
-  }
-
-  /**
-   * Gets all repositories in a project.
-   *
-   * @param {string} project - Project name or ID
-   * @returns {Promise<Array>} Repository objects
-   */
-  async getRepositories(project) {
-    const endpoint = `/${encodeURIComponent(project)}/_apis/git/repositories?api-version=${API_CONFIG.version}`;
-    const response = await this.fetch(endpoint);
-    return response.value || [];
-  }
 }
